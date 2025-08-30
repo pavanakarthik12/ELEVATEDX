@@ -7,7 +7,7 @@ from django.core.paginator import Paginator
 from django.http import HttpResponse
 
 from .models import Document, AuditLog
-from .serializers import DocumentSerializer, UploadSerializer, AuditSerializer, StatusUpdateSerializer
+from .serializers import DocumentSerializer, UploadSerializer, AuditSerializer, StatusUpdateSerializer, MultipleUploadSerializer
 from .validators import validate_document
 from .audit import log_action_db
 from .utils import get_user_from_headers, validate_role, get_encryption_key_from_settings
@@ -105,6 +105,131 @@ def upload_document(request):
             except Exception:
                 pass
             return Response({'error': 'Failed to process document upload'}, 
+                           status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+def upload_multiple_documents(request):
+    """Upload multiple documents at once (ADMIN only)"""
+    try:
+        user_id, user_role = get_user_from_headers(request)
+    except Exception as e:
+        return Response({'error': 'Missing or invalid user headers'}, 
+                       status=status.HTTP_400_BAD_REQUEST)
+    
+    # Restrict uploads to ADMIN (institution) only
+    if user_role != 'ADMIN':
+        return Response({'error': 'Only institutions (ADMIN) can upload documents'}, 
+                       status=status.HTTP_403_FORBIDDEN)
+    
+    serializer = MultipleUploadSerializer(data=request.data)
+    if serializer.is_valid():
+        try:
+            files = serializer.validated_data['files']
+            title_prefix = serializer.validated_data['title_prefix']
+            owner = serializer.validated_data['owner']
+            
+            # Prepare crypto key
+            key = get_encryption_key_from_settings()
+            if key is None:
+                return Response({'error': 'Encryption key missing on server'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+            aesgcm = AESGCM(key)
+            uploaded_documents = []
+            failed_uploads = []
+            
+            for i, file in enumerate(files):
+                try:
+                    # Run AI validation (on metadata only)
+                    ai_result = validate_document(file)
+                    
+                    # If validation fails (confidence 0), skip this file
+                    if ai_result['confidence'] == 0:
+                        failed_uploads.append({
+                            'filename': file.name,
+                            'error': 'AI validation failed',
+                            'issues': ai_result['issues']
+                        })
+                        continue
+                    
+                    # Generate 12-byte IV for AES-GCM
+                    import os
+                    iv_bytes = os.urandom(12)
+                    plaintext = file.read()
+                    
+                    # Compute SHA-256 of plaintext
+                    import hashlib
+                    file_hash = hashlib.sha256(plaintext).hexdigest()
+                    
+                    # Encrypt
+                    ciphertext = aesgcm.encrypt(iv_bytes, plaintext, None)
+                    
+                    # Store encrypted content in a Django File-like object
+                    encrypted_file = BytesIO(ciphertext)
+                    encrypted_file.name = file.name  # preserve filename
+                    
+                    # Generate title with index if multiple files
+                    title = f"{title_prefix} {i + 1}" if len(files) > 1 else title_prefix
+                    
+                    # Create and save document with encrypted bytes
+                    document = Document(
+                        title=title,
+                        owner=owner,
+                        ai_confidence=ai_result['confidence'],
+                        ai_issues=ai_result['issues'],
+                    )
+                    
+                    # Save file field first so storage backend handles writing
+                    document.file.save(file.name, encrypted_file, save=False)
+                    
+                    # Crypto metadata
+                    document.file_hash = file_hash
+                    document.enc_iv = base64.b64encode(iv_bytes).decode('utf-8')
+                    document.enc_tag = ''  # AESGCM ciphertext includes tag at the end
+                    document.enc_alg = 'AES-256-GCM'
+                    document.storage_backend = 'S3' if getattr(settings, 'USE_S3', False) else 'LOCAL'
+                    document.save()
+                    
+                    # Log upload action
+                    log_action_db(document, 'UPLOAD', user_id)
+                    
+                    # Add to successful uploads
+                    uploaded_documents.append({
+                        'doc_id': document.doc_id,
+                        'title': document.title,
+                        'filename': file.name,
+                        'file_hash': document.file_hash,
+                        'ai_confidence': document.ai_confidence
+                    })
+                    
+                except Exception as e:
+                    failed_uploads.append({
+                        'filename': file.name,
+                        'error': str(e)
+                    })
+                    logger.error(f"Failed to upload {file.name}: {str(e)}")
+            
+            # Return response
+            response_data = {
+                'message': f'Successfully uploaded {len(uploaded_documents)} out of {len(files)} files',
+                'uploaded_documents': uploaded_documents,
+                'total_files': len(files),
+                'successful_uploads': len(uploaded_documents),
+                'failed_uploads': len(failed_uploads)
+            }
+            
+            if failed_uploads:
+                response_data['failed_uploads_details'] = failed_uploads
+            
+            return Response(response_data, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            try:
+                logger.exception("Multiple upload failed: %s", str(e))
+            except Exception:
+                pass
+            return Response({'error': 'Failed to process multiple document uploads'}, 
                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

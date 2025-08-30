@@ -114,3 +114,47 @@ class DocumentListSerializer(serializers.ModelSerializer):
             'confidence': obj.ai_confidence or 0,
             'issues': obj.ai_issues or []
         }
+
+class MultipleUploadSerializer(serializers.Serializer):
+    """Serializer for multiple file uploads"""
+    files = serializers.ListField(
+        child=serializers.FileField(),
+        min_length=1,
+        max_length=4  # Limit to 4 files as requested
+    )
+    title_prefix = serializers.CharField(max_length=100, required=False, default="Document")
+    owner = serializers.CharField(max_length=100, required=True)
+    
+    def validate_files(self, value):
+        if not value:
+            raise serializers.ValidationError("At least one file is required")
+        
+        if len(value) > 4:
+            raise serializers.ValidationError("Maximum 4 files allowed")
+        
+        for file in value:
+            if not file.name.lower().endswith('.pdf'):
+                raise serializers.ValidationError(f"File {file.name} is not a PDF")
+            
+            if file.size > 10 * 1024 * 1024:
+                raise serializers.ValidationError(f"File {file.name} exceeds 10MB limit")
+            
+            if file.size == 0:
+                raise serializers.ValidationError(f"File {file.name} cannot be empty")
+            
+            if len(file.name) > 100:
+                raise serializers.ValidationError(f"File name {file.name} is too long (max 100 characters)")
+        
+        return value
+    
+    def validate_owner(self, value):
+        if not value or not value.strip():
+            raise serializers.ValidationError("Owner is required")
+        if len(value.strip()) < 2:
+            raise serializers.ValidationError("Owner must be at least 2 characters long")
+        return value.strip()
+    
+    def validate_title_prefix(self, value):
+        if value and len(value.strip()) < 2:
+            raise serializers.ValidationError("Title prefix must be at least 2 characters long")
+        return value.strip() if value else "Document"

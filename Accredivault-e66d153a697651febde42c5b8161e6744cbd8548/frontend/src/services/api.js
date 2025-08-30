@@ -20,6 +20,10 @@ export const documentAPI = {
     const res = await api.post('/docs/upload/', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
     return res.data;
   },
+  uploadMultiple: async (formData) => {
+    const res = await api.post('/docs/upload/multiple/', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+    return res.data;
+  },
   getAll: async (params = {}) => (await api.get('/docs/', { params })).data,
   getById: async (docId) => (await api.get(`/docs/${docId}/`)).data,
   updateStatus: async (docId, action) => (await api.patch(`/docs/${docId}/status/`, { action })).data,
@@ -28,7 +32,7 @@ export const documentAPI = {
     const fd = new FormData();
     fd.append('doc_id', docId);
     fd.append('file', file);
-    return (await api.post('/verify/file/', fd, { headers: { 'Content-Type': 'multipart/form-data' } })).data;
+    return (await api.post('/verify/file/', fd, { headers: { 'Content-Type': 'multipart/form-data' } }));
   },
 };
 
