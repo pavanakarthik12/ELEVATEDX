@@ -8,10 +8,10 @@ export default function App() {
     <BrowserRouter>
       <div className="admin-container">
         <header className="admin-header">
-          <h1 className="admin-title">AccrediVault Admin</h1>
-          <p className="admin-subtitle">Secure Document Management for Educational Institutions</p>
+          <h1 className="admin-title">AccrediVault</h1>
+          <p className="admin-subtitle">Enterprise Document Management & Verification System</p>
           <nav className="admin-nav">
-            <Link to="/upload">📤 Upload Documents</Link>
+            <Link to="/upload">Upload Documents</Link>
           </nav>
         </header>
         <Routes>

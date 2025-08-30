@@ -10,10 +10,10 @@ export default function App() {
       <div className="verifier-container">
         <header className="verifier-header">
           <h1 className="verifier-title">AccrediVault Verifier</h1>
-          <p className="verifier-subtitle">Professional Document Verification for Companies</p>
+          <p className="verifier-subtitle">Professional Document Verification for Enterprises</p>
           <nav className="verifier-nav">
-            <Link to="/verify/file">🔍 Verify by File</Link>
-            <Link to="/verify/hash">🔐 Verify by Hash</Link>
+            <Link to="/verify/file">Verify by File</Link>
+            <Link to="/verify/hash">Verify by Hash</Link>
           </nav>
         </header>
         <Routes>
