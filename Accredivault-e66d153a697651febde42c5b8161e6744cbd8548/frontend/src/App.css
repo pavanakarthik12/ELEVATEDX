@@ -814,11 +814,7 @@ body {
   gap: 0.25rem;
 }
 
-.ai-confidence {
-  font-size: 0.875rem;
-  color: #059669;
-  font-weight: 500;
-}
+
 
 /* Responsive adjustments for multiple upload */
 @media (max-width: 768px) {

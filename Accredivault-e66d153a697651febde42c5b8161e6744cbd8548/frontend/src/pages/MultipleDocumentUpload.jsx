@@ -314,7 +314,7 @@ export default function MultipleDocumentUpload() {
                     <span className="doc-id">ID: {doc.doc_id}</span>
                   </div>
                   <div className="doc-status">
-                    <span className="ai-confidence">AI Confidence: {doc.ai_confidence}%</span>
+                    <span className="file-hash">Hash: {doc.file_hash}</span>
                   </div>
                 </div>
               ))}
