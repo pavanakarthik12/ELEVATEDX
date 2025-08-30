@@ -1,0 +1,16 @@
+# Email Configuration
+# Replace with your actual Gmail credentials
+EMAIL_HOST_USER=your_email@gmail.com
+EMAIL_HOST_PASSWORD=your_app_password_here
+ADMIN_EMAIL=admin@yourinstitution.com
+
+# Encryption Key (base64 encoded 32-byte key)
+ENCRYPTION_KEY_B64=your_base64_encryption_key_here
+
+# Optional: AWS S3 Settings
+# USE_S3=False
+# AWS_ACCESS_KEY_ID=your_aws_access_key
+# AWS_SECRET_ACCESS_KEY=your_aws_secret_key
+# AWS_STORAGE_BUCKET_NAME=your_bucket_name
+# AWS_S3_REGION_NAME=us-east-1
+
